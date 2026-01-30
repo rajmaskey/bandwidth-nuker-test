@@ -48,6 +48,24 @@ function formatBytes(bytes: number, decimals = 2) {
 }
 
 export default function Home() {
+  // Basic login prompt
+  useEffect(() => {
+    const allowedPassword = "letmein"; // Change this to your desired password
+    let entered = false;
+    while (!entered) {
+      const input = window.prompt("Enter password to access this site:");
+      if (input === allowedPassword) {
+        entered = true;
+      } else if (input === null) {
+        // User cancelled prompt, redirect or block
+        window.location.href = "https://www.google.com";
+        return;
+      } else {
+        window.alert("Incorrect password. Please try again.");
+      }
+    }
+  }, []);
+  
   // Config State
   const [targetUrl, setTargetUrl] = useState("");
   const [concurrency, setConcurrency] = useState(5);
@@ -67,7 +85,11 @@ export default function Home() {
     errorCount: 0,
     totalBytes: 0,
     startTime: 0,
+    rateLimitCount: 0, // Track 429 errors
+    corsErrorCount: 0, // Track CORS errors
   });
+  const [rateLimitCount, setRateLimitCount] = useState(0);
+  const [corsErrorCount, setCorsErrorCount] = useState(0);
 
   // Visualization State
   const [chartData, setChartData] = useState<ChartData[]>([]);
@@ -153,6 +175,14 @@ export default function Home() {
         const size = blob.size;
         const end = performance.now();
 
+        if (response.status === 429) {
+          statsRef.current.rateLimitCount++;
+          setRateLimitCount(statsRef.current.rateLimitCount);
+          // Optional: simple backoff for 429
+          await new Promise(res => setTimeout(res, 1000)); // Wait 1s before retry
+          continue;
+        }
+
         if (response.ok) {
           statsRef.current.successCount++;
           statsRef.current.totalBytes += size;
@@ -161,7 +191,13 @@ export default function Home() {
         }
       } catch (err: any) {
         if (err.name !== 'AbortError') {
-          statsRef.current.errorCount++;
+          // Detect CORS error (TypeError with message 'Failed to fetch')
+          if (err instanceof TypeError && err.message && err.message.match(/fetch|network/i)) {
+            statsRef.current.corsErrorCount++;
+            setCorsErrorCount(statsRef.current.corsErrorCount);
+          } else {
+            statsRef.current.errorCount++;
+          }
         }
       } finally {
         statsRef.current.totalRequests++;
@@ -177,7 +213,11 @@ export default function Home() {
       errorCount: 0,
       totalBytes: 0,
       startTime: Date.now(),
+      rateLimitCount: 0,
+      corsErrorCount: 0,
     };
+    setRateLimitCount(0);
+    setCorsErrorCount(0);
     setChartData([]);
     setRealtimeStats({ rps: 0, bw: 0, total: 0, errors: 0, bytes: 0 });
     setElapsedTime(0);
@@ -360,6 +400,39 @@ export default function Home() {
                     <h4 className="text-destructive font-bold text-sm">Errors Detected</h4>
                     <p className="text-xs text-destructive/80 mt-1">
                       {realtimeStats.errors} requests failed. Check CORS settings or target availability.
+                    </p>
+                  </div>
+                </motion.div>
+              )}
+              {rateLimitCount > 0 && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0 }}
+                  className="bg-warning/10 border border-warning/50 p-4 flex items-start gap-3 mt-2"
+                >
+                  <AlertTriangle className="w-5 h-5 text-warning shrink-0 mt-0.5" />
+                  <div>
+                    <h4 className="text-warning font-bold text-sm">Rate Limiting Detected</h4>
+                    <p className="text-xs text-warning/80 mt-1">
+                      {rateLimitCount} requests were rate limited (HTTP 429). Lower concurrency or use more proxies to avoid this.
+                    </p>
+                  </div>
+                </motion.div>
+              )}
+              {corsErrorCount > 0 && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0 }}
+                  className="bg-orange-100 border border-orange-300 p-4 flex items-start gap-3 mt-2"
+                >
+                  <AlertTriangle className="w-5 h-5 text-orange-500 shrink-0 mt-0.5" />
+                  <div>
+                    <h4 className="text-orange-500 font-bold text-sm">CORS Error Detected</h4>
+                    <p className="text-xs text-orange-700 mt-1">
+                      {corsErrorCount} requests failed due to CORS policy. The target server does not allow cross-origin requests from your browser. <br />
+                      <span className="font-semibold">Solution:</span> Use a CORS proxy, run the test from a backend/server, or contact the server admin to enable CORS.
                     </p>
                   </div>
                 </motion.div>
