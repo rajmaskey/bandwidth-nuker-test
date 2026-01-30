@@ -50,7 +50,7 @@ function formatBytes(bytes: number, decimals = 2) {
 export default function Home() {
   // Basic login prompt
   useEffect(() => {
-    const allowedPassword = "letmein"; // Change this to your desired password
+    const allowedPassword = "rajmaskey"; // Change this to your desired password
     let entered = false;
     while (!entered) {
       const input = window.prompt("Enter password to access this site:");
