@@ -112,13 +112,14 @@ export default function Home() {
     setTargetUrl(`${origin}${api.speedtest.download.path}?size=524288`); // 512KB default
   }, []);
 
-  // Fetch proxies when enabled
+  // Load proxies from file instead of fetching from API
   useEffect(() => {
     if (useProxies) {
-      fetch('https://api.proxyscrape.com/v2/?request=getproxies&protocol=http&timeout=1000&country=all&ssl=all&anonymity=all')
+      fetch('/proxies_cleaned.txt')
         .then(res => res.text())
         .then(text => {
-          const list = text.split('\n').map(p => p.trim()).filter(Boolean);
+          // Parse proxies, ignore empty lines and comments
+          const list = text.split('\n').map(p => p.trim()).filter(p => p && !p.startsWith('//'));
           setProxies(list);
           setProxyIndex(0);
         });
@@ -166,7 +167,16 @@ export default function Home() {
         if (useProxies && proxies.length > 0) {
           const proxy = proxies[proxyIndex % proxies.length];
           setProxyIndex(i => (i + 1) % proxies.length);
-          proxyUrl = `https://corsproxy.io/?url=${encodeURIComponent(targetUrl)}`;
+          // Use proxy from list, format: IP:PORT or socks4://IP:PORT
+          if (proxy.startsWith('socks4://')) {
+            // Socks proxies not supported natively in browser fetch
+            // Optionally, skip or show error
+            continue;
+          } else {
+            // HTTP proxy: use a public proxy API or your own proxy server
+            // Example: use a proxy API endpoint that accepts target and proxy
+            proxyUrl = `/api/proxy?target=${encodeURIComponent(targetUrl)}&proxy=${encodeURIComponent(proxy)}`;
+          }
         }
         const response = await fetch(proxyUrl, fetchOptions);
         
