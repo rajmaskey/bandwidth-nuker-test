@@ -28,6 +28,8 @@ import {
 } from "recharts";
 import { motion, AnimatePresence } from "framer-motion";
 import { useToast } from "@/hooks/use-toast";
+import { Switch } from "@/components/ui/switch";
+import { Input } from "@/components/ui/input";
 
 interface ChartData {
   time: string;
@@ -50,6 +52,9 @@ export default function Home() {
   const [targetUrl, setTargetUrl] = useState("");
   const [concurrency, setConcurrency] = useState(5);
   const [duration, setDuration] = useState(30); // seconds, 0 for infinite
+  const [useProxies, setUseProxies] = useState(false);
+  const [proxies, setProxies] = useState<string[]>([]);
+  const [proxyIndex, setProxyIndex] = useState(0);
 
   // Running State
   const [isRunning, setIsRunning] = useState(false);
@@ -84,6 +89,19 @@ export default function Home() {
     const origin = window.location.origin;
     setTargetUrl(`${origin}${api.speedtest.download.path}?size=524288`); // 512KB default
   }, []);
+
+  // Fetch proxies when enabled
+  useEffect(() => {
+    if (useProxies) {
+      fetch('https://api.proxyscrape.com/v2/?request=getproxies&protocol=http&timeout=1000&country=all&ssl=all&anonymity=all')
+        .then(res => res.text())
+        .then(text => {
+          const list = text.split('\n').map(p => p.trim()).filter(Boolean);
+          setProxies(list);
+          setProxyIndex(0);
+        });
+    }
+  }, [useProxies]);
 
   const stopTest = () => {
     if (abortControllerRef.current) {
@@ -121,12 +139,14 @@ export default function Home() {
       }
 
       try {
-        const start = performance.now();
-        const response = await fetch(targetUrl, { 
-          signal, 
-          cache: "no-store",
-          mode: 'cors' 
-        });
+        let fetchOptions: RequestInit = { signal, cache: "no-store", mode: 'cors' };
+        let proxyUrl = targetUrl;
+        if (useProxies && proxies.length > 0) {
+          const proxy = proxies[proxyIndex % proxies.length];
+          setProxyIndex(i => (i + 1) % proxies.length);
+          proxyUrl = `https://corsproxy.io/?url=${encodeURIComponent(targetUrl)}`;
+        }
+        const response = await fetch(proxyUrl, fetchOptions);
         
         // Read body to calculate size
         const blob = await response.blob();
@@ -294,6 +314,12 @@ export default function Home() {
                     />
                     <div className="text-[10px] text-muted-foreground text-right">0 = Infinite</div>
                   </div>
+                </div>
+
+                <div className="flex items-center gap-2 mb-2">
+                  <Switch checked={useProxies} onCheckedChange={setUseProxies} id="proxy-switch" />
+                  <label htmlFor="proxy-switch" className="text-xs uppercase text-muted-foreground font-bold tracking-wider cursor-pointer">Use Proxies</label>
+                  <span className="text-xs text-muted-foreground ml-2">(from proxyscrape.com)</span>
                 </div>
 
                 <div className="pt-4">
