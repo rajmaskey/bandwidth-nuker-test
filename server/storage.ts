@@ -1,37 +1,40 @@
-import { type User, type InsertUser } from "@shared/schema";
-import { randomUUID } from "crypto";
-
-// modify the interface with any CRUD methods
-// you might need
+import { type TestHistory, type InsertTestHistory } from "@shared/schema";
 
 export interface IStorage {
-  getUser(id: string): Promise<User | undefined>;
-  getUserByUsername(username: string): Promise<User | undefined>;
-  createUser(user: InsertUser): Promise<User>;
+  getHistory(): Promise<TestHistory[]>;
+  createTestHistory(run: InsertTestHistory): Promise<TestHistory>;
+  clearHistory(): Promise<void>;
 }
 
 export class MemStorage implements IStorage {
-  private users: Map<string, User>;
+  private history: Map<number, TestHistory>;
+  private currentId: number;
 
   constructor() {
-    this.users = new Map();
+    this.history = new Map();
+    this.currentId = 1;
   }
 
-  async getUser(id: string): Promise<User | undefined> {
-    return this.users.get(id);
+  async getHistory(): Promise<TestHistory[]> {
+    return Array.from(this.history.values()).sort((a, b) => b.id - a.id);
   }
 
-  async getUserByUsername(username: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(
-      (user) => user.username === username,
-    );
+  async createTestHistory(insertRun: InsertTestHistory): Promise<TestHistory> {
+    const id = this.currentId++;
+    const run: TestHistory = { 
+      ...insertRun, 
+      id, 
+      createdAt: new Date(),
+      // Fill defaults if missing (though schema handles most)
+      method: insertRun.method ?? "GET",
+      concurrency: insertRun.concurrency ?? 1
+    };
+    this.history.set(id, run);
+    return run;
   }
 
-  async createUser(insertUser: InsertUser): Promise<User> {
-    const id = randomUUID();
-    const user: User = { ...insertUser, id };
-    this.users.set(id, user);
-    return user;
+  async clearHistory(): Promise<void> {
+    this.history.clear();
   }
 }
 

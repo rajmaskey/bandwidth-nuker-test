@@ -1,21 +1,26 @@
-import { Card, CardContent } from "@/components/ui/card";
-import { AlertCircle } from "lucide-react";
+import { Link } from "wouter";
+import { AlertTriangle } from "lucide-react";
+import { CyberButton } from "@/components/CyberButton";
 
 export default function NotFound() {
   return (
-    <div className="min-h-screen w-full flex items-center justify-center bg-gray-50">
-      <Card className="w-full max-w-md mx-4">
-        <CardContent className="pt-6">
-          <div className="flex mb-4 gap-2">
-            <AlertCircle className="h-8 w-8 text-red-500" />
-            <h1 className="text-2xl font-bold text-gray-900">404 Page Not Found</h1>
-          </div>
+    <div className="min-h-screen w-full flex items-center justify-center bg-background relative overflow-hidden">
+      <div className="scanline" />
+      
+      <div className="cyber-card p-12 max-w-md text-center border-destructive/50 shadow-[0_0_50px_rgba(255,0,0,0.1)]">
+        <AlertTriangle className="w-20 h-20 text-destructive mx-auto mb-6 animate-pulse" />
+        
+        <h1 className="text-4xl font-display font-bold text-destructive mb-4">404 ERROR</h1>
+        <p className="text-muted-foreground font-mono mb-8">
+          The requested data segment could not be located in the neural network.
+        </p>
 
-          <p className="mt-4 text-sm text-gray-600">
-            Did you forget to add the page to the router?
-          </p>
-        </CardContent>
-      </Card>
+        <Link href="/">
+          <CyberButton variant="destructive" className="w-full">
+            Return to Base
+          </CyberButton>
+        </Link>
+      </div>
     </div>
   );
 }

@@ -1,18 +1,24 @@
-import { sql } from "drizzle-orm";
-import { pgTable, text, varchar } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, jsonb } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
-export const users = pgTable("users", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  username: text("username").notNull().unique(),
-  password: text("password").notNull(),
+export const testHistory = pgTable("test_history", {
+  id: serial("id").primaryKey(),
+  targetUrl: text("target_url").notNull(),
+  method: text("method").notNull().default("GET"),
+  concurrency: integer("concurrency").notNull().default(1),
+  durationSeconds: integer("duration_seconds").notNull(),
+  totalRequests: integer("total_requests").notNull(),
+  successCount: integer("success_count").notNull(),
+  errorCount: integer("error_count").notNull(),
+  totalBytes: integer("total_bytes").notNull(), // Approximate
+  createdAt: timestamp("created_at").defaultNow(),
 });
 
-export const insertUserSchema = createInsertSchema(users).pick({
-  username: true,
-  password: true,
+export const insertTestHistorySchema = createInsertSchema(testHistory).omit({ 
+  id: true, 
+  createdAt: true 
 });
 
-export type InsertUser = z.infer<typeof insertUserSchema>;
-export type User = typeof users.$inferSelect;
+export type TestHistory = typeof testHistory.$inferSelect;
+export type InsertTestHistory = z.infer<typeof insertTestHistorySchema>;
